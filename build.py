@@ -14,12 +14,12 @@ def read_from(filename):
 
 default_task = ["publish", "clean"]
 
-name = "pybuilder-setup-cfg"
-summary = 'PyBuilder plugin for getting information from setup.cfg file or environment variables'
-authors = [Author('Martin Gruber', 'martin.gruber@email.cz')]
+name = "pybuilder-pyproject-toml"
+summary = 'PyBuilder plugin for getting information from pyproject.toml file or environment variables'
+authors = [Author('Martin Gruber', 'martin.gruber@email.cz'), Author('Adam Chýlek', 'adam@chylek.eu')]
 version = read_from('VERSION')
 license = 'MIT'
-url = 'https://github.com/margru/pybuilder-setup-cfg'
+url = 'https://github.com/chylek/pybuilder-pyproject-toml'
 
 classifiers = [
     # How mature is this project? Common values are
@@ -37,7 +37,7 @@ classifiers = [
 ]
 
 description = """
-Please, see https://github.com/margru/pybuilder-setup-cfg for more information.
+Please, see https://github.com/chylek/pybuilder-pyproject-toml for more information.
 """
 
 @init

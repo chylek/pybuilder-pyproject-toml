@@ -4,10 +4,9 @@ import os
 import re
 from functools import reduce
 
-import configparser
 from pybuilder.core import init
 
-__author__ = u"Martin Grůber"
+__author__ = u"Martin Grůber, Adam Chýlek"
 
 try:
     string_types = basestring
@@ -22,86 +21,77 @@ def read_from(filename):
 
 
 @init
-def init_setup_cfg_plugin(project, logger):
-    pass
+def init_pyproject_plugin(project, logger):
+    project.plugin_depends_on("toml", "~=0.10.0")
+
+
+def section_get(config, section, option, fallback=None):
+    try:
+        return config[section][option]
+    except KeyError:
+        return fallback
 
 
 @init
-def init1_from_setup_cfg(project, logger):
-
-    config = configparser.ConfigParser(interpolation=configparser.ExtendedInterpolation())
-    logger.debug(f"setup_cfg plugin: Project basedir: {project.basedir}")
-    setup_filename = os.path.join(project.basedir, "setup.cfg")
+def init_from_pyproject(project, logger):
+    import toml
+    
+    pyproject_filename = os.path.join(project.basedir, "pyproject.toml")
     try:
-        config.read(setup_filename)
+        config = toml.load(pyproject_filename)
     except Exception:
-        logger.error(f"setup_cfg plugin: setup.cfg not loaded ({setup_filename})")
+        logger.error(f"pyproject_toml plugin: pyproject.toml not loaded ({pyproject_filename})")
     else:
-        logger.info(f"setup_cfg plugin: Loaded configuration from {setup_filename}")
-
-    name = os.environ.get("PYB_SCFG_NAME", config.get("metadata", "name", fallback=None))
-    version = os.environ.get("PYB_SCFG_VERSION", config.get("metadata", "version", fallback=None))
+        logger.info(f"pyproject_toml plugin: Loaded configuration from {pyproject_filename}")
+    name = os.environ.get("PYB_SCFG_NAME", section_get(config, "metadata", "name"))
+    version = os.environ.get("PYB_SCFG_VERSION", section_get(config, "metadata", "version"))
     if version and version.startswith("file: "):
         version = read_from(version.split(maxsplit=1)[1])
     distutils_commands = list(filter(lambda item: item.strip(), map(
         lambda item: item.strip(), os.environ.get(
-            "PYB_SCFG_DISTUTILS_COMMANDS", config.get("tool:pybuilder", "distutils_commands", fallback="sdist")
+            "PYB_SCFG_DISTUTILS_COMMANDS", ""
         ).split()
     )))
+    if not distutils_commands:
+        section_get(config, "tool:pybuilder", "distutils_commands", fallback=["sdist"])
     distutils_upload_repository = os.environ.get(
-        "PYB_SCFG_UPLOAD_REPOSITORY", config.get("tool:pybuilder", "distutils_upload_repository", fallback=None)
+        "PYB_SCFG_UPLOAD_REPOSITORY", section_get(config, "tool:pybuilder", "distutils_upload_repository", fallback=None)
     )
     copy_resources_glob = list(filter(lambda item: item.strip(), map(
-        lambda item: item.strip(), config.get("tool:pybuilder", "copy_resources_glob", fallback="").split()
+        lambda item: item.strip(), section_get(config, "tool:pybuilder", "copy_resources_glob", fallback="").split()
     )))
 
-    package_data_tuples = [
-        line.strip().split("=", maxsplit=1)
-        for line in config.get("files", "package_data", fallback="").splitlines()
-        if line.strip()
-    ]
-    if not package_data_tuples and config.has_section("options.package_data"):
-        package_data_tuples = config.items("options.package_data")
-    package_data = dict(map(
-        lambda t: (t[0].strip(), re.split(r"\s|,\s*", t[1].strip())),
-        package_data_tuples
-    ))
+    package_data = section_get(config, "files", "package_data", fallback={})
 
-    cython_include_modules = list(filter(lambda item: item.strip(), map(
-        lambda item: item.strip(), config.get("tool:pybuilder", "cython_include_modules", fallback="").split()
-    )))
-    cython_exclude_modules = list(filter(lambda item: item.strip(), map(
-        lambda item: item.strip(), config.get("tool:pybuilder", "cython_exclude_modules", fallback="").split()
-    )))
-    cython_remove_python_sources = config.getboolean(
-        "tool:pybuilder", "cython_remove_python_sources", fallback=False
-    )
-    if config.has_section("tool:pybuilder.cython_compiler_directives"):
-        cython_compiler_directives = dict(config.items("tool:pybuilder.cython_compiler_directives"))
-    else:
-        cython_compiler_directives = {}
+    if not package_data and "options.package_data" in config:
+        package_data = config["options.package_data"]
 
-    coverage_break_build_from_cfg = config.get("coverage:report", "fail_under", fallback=None)
+    cython_include_modules = section_get(config, "tool:pybuilder", "cython_include_modules", fallback=[])
+    cython_exclude_modules = section_get(config, "tool:pybuilder", "cython_exclude_modules", fallback=[])
+    cython_remove_python_sources = section_get(config, "tool:pybuilder", "cython_remove_python_sources", fallback=False)
+    cython_compiler_directives = section_get(config, "tool:pybuilder","cython_compiler_directives", fallback={})
+    
+    coverage_break_build_from_cfg = section_get(config, "coverage:report", "fail_under", fallback=None)
     if coverage_break_build_from_cfg is None:
-        coverage_break_build_from_cfg = config.get("tool:pytest", "coverage_break_build_threshold", fallback=None)
+        coverage_break_build_from_cfg = section_get(config, "tool:pytest", "coverage_break_build_threshold", fallback=None)
     pytest_coverage_break_build_threshold = os.environ.get(
         "PYB_SCFG_PYTEST_COVERAGE_BREAK_BUILD_THRESHOLD",
         coverage_break_build_from_cfg
     )
 
-    pytest_coverage_html = config.getboolean("tool:pytest", "coverage_html", fallback=False)
-    pytest_coverage_annotate = config.getboolean("tool:pytest", "coverage_annotate", fallback=False)
+    pytest_coverage_html = section_get(config, "tool:pytest", "coverage_html", fallback=False)
+    pytest_coverage_annotate = section_get(config, "tool:pytest", "coverage_annotate", fallback=False)
 
-    docstr_coverage_config = config.get("tool:docstr_coverage", "config", fallback=None)
-    docstr_coverage_fail_under = config.get("tool:docstr_coverage", "fail_under", fallback=None)
+    docstr_coverage_config = section_get(config, "tool:docstr_coverage", "config", fallback=None)
+    docstr_coverage_fail_under = section_get(config, "tool:docstr_coverage", "fail_under", fallback=None)
 
-    scm_ver_version_scheme = config.get("tool:setuptools_scm", "version_scheme", fallback=None)
+    scm_ver_version_scheme = section_get(config, "tool:setuptools_scm", "version_scheme", fallback=None)
     scm_ver_version_scheme = os.environ.get("PYB_SCFG_SCM_VERSION_SCHEME", scm_ver_version_scheme)
-    scm_ver_local_scheme = config.get("tool:setuptools_scm", "local_scheme", fallback=None)
+    scm_ver_local_scheme = section_get(config, "tool:setuptools_scm", "local_scheme", fallback=None)
     scm_ver_local_scheme = os.environ.get("PYB_SCFG_SCM_VERSION_SCHEME", scm_ver_local_scheme)
-    scm_ver_root = config.get("tool:setuptools_scm", "root", fallback=None)
+    scm_ver_root = section_get(config, "tool:setuptools_scm", "root", fallback=None)
     scm_ver_root = os.environ.get("PYB_SCFG_SCM_ROOT", scm_ver_root)
-    scm_ver_relative_to = config.get("tool:setuptools_scm", "relative_to", fallback=None)
+    scm_ver_relative_to = section_get(config, "tool:setuptools_scm", "relative_to", fallback=None)
     scm_ver_relative_to = os.environ.get("PYB_SCFG_SCM_RELATIVE_TO", scm_ver_relative_to)
 
     # analyze - Python flake8 linting
@@ -111,9 +101,10 @@ def init1_from_setup_cfg(project, logger):
     # sphinx_generate_documentation - generate sphinx documentation
     default_task = list(filter(lambda item: item.strip(), map(
         lambda item: item.strip(), os.environ.get(
-            "PYB_SCFG_DEFAULT_TASK", config.get("tool:pybuilder", "default_task", fallback="analyze publish clean")
-        ).split()
-    )))
+            "PYB_SCFG_DEFAULT_TASK", "").split())))
+    if not default_task:
+        section_get(config, "tool:pybuilder", "default_task", fallback=["analyze", "publish", "clean"])
+
 
     if name:
         project.set_property("name", name)

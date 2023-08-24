@@ -1,20 +1,20 @@
-# PyBuilder setup.cfg plugin
+# PyBuilder pyproject.toml plugin
 
-[PyBuilder](http://pybuilder.github.io/) plugin for getting various information from the setup.cfg file. Tested for PyBuilder version 0.11.X.
+[PyBuilder](http://pybuilder.github.io/) plugin for getting various information from the pyproject.toml file. Tested for PyBuilder version 0.13.X.
 
 ## How to use it
 
 In your `build.py`:
 
 ```
-use_plugin("pypi:pybuilder_setup_cfg")
+use_plugin("pypi:pybuilder_pyproject_toml")
 ```
 
-**IMPORTANT** Use this plugin as the first one as it's getting basic data from the `setup.cfg` that may be overwritten/adjusted later on. It may not work properly if not loaded as the first plugin in your project.
+**IMPORTANT** Use this plugin as the first one as it's getting basic data from the `pyproject.toml` that may be overwritten/adjusted later on. It may not work properly if not loaded as the first plugin in your project.
 
-The setup_cfg plugin works as an initializer. You do not have to do anything else. 
+The pyproject_toml plugin works as an initializer. You do not have to do anything else. 
 
-It reads the following settings from the setup.cfg file (or from environment variables) and set project properties accordingly:
+It reads the following settings from the pyproject.toml file (or from environment variables) and set project properties accordingly:
 - name
   - envvar: PYB_SCFG_NAME
   - section: metadata
@@ -24,7 +24,7 @@ It reads the following settings from the setup.cfg file (or from environment var
   - section: metadata
   - option: name
 - package_data
-  - description: list of items where each item is a whitespace or comma separated list of file patterns to include
+  - description: mapping package names to lists of file patterns to include
   - section: options.package_data (standard location and format)
 
     OR

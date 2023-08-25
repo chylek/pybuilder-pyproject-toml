@@ -27,7 +27,8 @@ def init_pyproject_plugin(project, logger):
 
 def section_get(config, section, option, fallback=None):
     try:
-        return config[section][option]
+        subsections = section.split(".")
+        return reduce(operator.getitem, subsections, config)[option]
     except KeyError:
         return fallback
 
@@ -57,9 +58,7 @@ def init_from_pyproject(project, logger):
     distutils_upload_repository = os.environ.get(
         "PYB_SCFG_UPLOAD_REPOSITORY", section_get(config, "tool.pybuilder", "distutils_upload_repository", fallback=None)
     )
-    copy_resources_glob = list(filter(lambda item: item.strip(), map(
-        lambda item: item.strip(), section_get(config, "tool.pybuilder", "copy_resources_glob", fallback="").split()
-    )))
+    copy_resources_glob = section_get(config, "tool.pybuilder", "copy_resources_glob", fallback=[])
 
     package_data = section_get(config, "files", "package_data", fallback={})
 

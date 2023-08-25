@@ -53,5 +53,5 @@ def set_properties(project):
     project.set_property("copy_resources_glob", ["MANIFEST.in", "VERSION", "README.md", "LICENSE"])
     project.set_property("copy_resources_target", "${dir_dist}")
 
-    project.depends_on("configparser")
+    project.depends_on("toml")
 
